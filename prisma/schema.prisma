@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -153,12 +154,12 @@ model Appointment {
   // Doctor relation
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
 
+  // Note: double-booking protection is enforced by a partial unique index
+  // (migration 20260919183123_add_doctor_availability), not a schema-level
+  // @@unique, so a cancelled appointment doesn't permanently block its slot.
+
   // Query indexes
   @@index([patientId])
   @@index([doctorId])
   @@index([appointmentDate])
-
-  // Note: double-booking protection is enforced by a partial unique index
-  // (migration 20260919183123_add_doctor_availability), not a schema-level
-  // @@unique, so a cancelled appointment doesn't permanently block its slot.
 }
