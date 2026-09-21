@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===============================
+// ENUMS
+// ===============================
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+  PHARMACIST
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// ===============================
+// USER
+// ===============================
+
+model User {
+  id       Int      @id @default(autoincrement())
+  name     String
+  email    String   @unique
+  password String
+  phone    String?
+  role     UserRole @default(PATIENT)
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Doctor profile
+  doctor Doctor?
+
+  // Patient appointments
+  appointmentsAsPatient Appointment[] @relation("PatientAppointments")
+}
+
+// ===============================
+// DEPARTMENT
+// ===============================
+
+model Department {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctors Doctor[]
+}
+
+// ===============================
+// DOCTOR
+// ===============================
+
+model Doctor {
+  id             Int     @id @default(autoincrement())
+  userId         Int     @unique
+  specialization String
+  qualification  String?
+  experience     Int?
+  licenseNumber  String? @unique
+  isAvailable    Boolean @default(true)
+  imageUrl       String?
+  bio            String?
+
+  departmentId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  appointments Appointment[]
+
+  availability DoctorAvailability[]
+
+  @@index([departmentId])
+}
+
+// ===============================
+// DOCTOR AVAILABILITY
+// ===============================
+
+model DoctorAvailability {
+  id Int @id @default(autoincrement())
+
+  doctorId  Int
+  dayOfWeek Int
+  // 0 = Sunday
+  // 1 = Monday
+  // 2 = Tuesday
+  // 3 = Wednesday
+  // 4 = Thursday
+  // 5 = Friday
+  // 6 = Saturday
+
+  startTime String
+  // Example: "09:00"
+
+  endTime String
+  // Example: "17:00"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, dayOfWeek])
+}
+
+// ===============================
+// APPOINTMENT
+// ===============================
+
+model Appointment {
+  id Int @id @default(autoincrement())
+
+  patientId Int
+  doctorId  Int
+
+  appointmentDate DateTime
+
+  reason String?
+  status AppointmentStatus @default(PENDING)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Patient relation
+  patient User @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Restrict)
+
+  // Doctor relation
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  // Query indexes
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentDate])
+
+  // Note: double-booking protection is enforced by a partial unique index
+  // (migration 20260919183123_add_doctor_availability), not a schema-level
+  // @@unique, so a cancelled appointment doesn't permanently block its slot.
+}
