@@ -15,7 +15,10 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: "https://medicare-forntend.vercel.app/",
+    origin: [
+      'https://medicare-forntend.vercel.app',
+      'http://localhost:5173',
+    ],
     credentials: true,
   });
   await app.listen(process.env.PORT ?? 3000);
